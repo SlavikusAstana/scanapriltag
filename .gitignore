@@ -2,6 +2,9 @@
 **/bin/
 **/obj/
 _testbuild/
+# Legacy Python prototype (not in repo)
+scan.py
+requirements.txt
 __pycache__/
 *.pyc
 
