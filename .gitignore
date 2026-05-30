@@ -20,5 +20,5 @@ Desktop.ini
 # Local publish folder (same content as release zip)
 dist/
 
-# Keep release zip out of git — attach via GitHub Releases (>100 MB limit)
-release/*.zip
+# Local publish helper (not in repo)
+publish-github.bat
