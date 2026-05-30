@@ -1,0 +1,221 @@
+﻿<Window x:Class="AprilTagScanner.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AprilTag Scanner Pro"
+        Icon="Assets/AppIcon.ico"
+        MinWidth="980" MinHeight="680"
+        Width="1200" Height="760"
+        WindowStartupLocation="CenterScreen">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
+            <TextBlock x:Name="LanguageLabel" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox x:Name="LanguageCombo" Width="120"
+                      SelectionChanged="LanguageCombo_OnSelectionChanged"/>
+        </StackPanel>
+
+        <TabControl Grid.Row="1" x:Name="MainTab" SelectionChanged="MainTab_OnSelectionChanged">
+            <TabItem x:Name="ScannerTab" Header="Scanner">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="3*" MinWidth="420"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="*" MinWidth="320"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Border BorderBrush="#CCC" BorderThickness="1" Background="#111">
+                            <Image x:Name="PreviewImage" Stretch="Uniform"/>
+                        </Border>
+                        <TextBlock Grid.Row="1" x:Name="PerfText" Margin="0,6,0,0" FontSize="12" Foreground="#555"/>
+                    </Grid>
+
+                    <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch"/>
+
+                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="0,0,14,0">
+                            <TextBlock x:Name="AppTitleText" FontSize="16" FontWeight="Bold" Margin="0,0,0,6"/>
+                            <TextBlock x:Name="StatusText" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                            <GroupBox x:Name="SettingsGroup" Header="Settings" Padding="8" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="FamilyLabel" VerticalAlignment="Center"/>
+                                        <ComboBox x:Name="FamilyCombo" Grid.Column="1" Margin="8,0,0,0"
+                                                  SelectionChanged="FamilyCombo_OnSelectionChanged"/>
+                                    </Grid>
+                                    <CheckBox x:Name="MultiFamilyCheck" Margin="0,0,0,6"
+                                              Checked="MultiFamilyCheck_OnChanged" Unchecked="MultiFamilyCheck_OnChanged"/>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="SpeedLabel" VerticalAlignment="Center"/>
+                                        <ComboBox x:Name="PresetCombo" Grid.Column="1" Margin="8,0,0,0"
+                                                  SelectionChanged="PresetCombo_OnSelectionChanged"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="CameraLabel" VerticalAlignment="Center"/>
+                                        <ComboBox x:Name="CameraCombo" Grid.Column="1" Margin="8,0,0,0"
+                                                  MinWidth="160"
+                                                  SelectionChanged="CameraCombo_OnSelectionChanged"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="MissLabel" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="MissBox" Grid.Column="1" Width="40" Margin="8,0,0,0" Text="8"/>
+                                    </Grid>
+                                    <CheckBox x:Name="BeepCheck" IsChecked="True"/>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <Button x:Name="ReconnectButton" Margin="0,0,0,6"
+                                    Click="ReconnectButton_OnClick" IsEnabled="True"/>
+
+                            <UniformGrid Columns="3" Margin="0,0,0,6">
+                                <Button x:Name="StartButton" Margin="0,0,4,0" Click="StartButton_OnClick" IsEnabled="False"/>
+                                <Button x:Name="StopButton" Margin="4,0,4,0" Click="StopButton_OnClick" IsEnabled="False"/>
+                                <Button x:Name="ResetButton" Margin="4,0,0,0" Click="ResetButton_OnClick" IsEnabled="False"/>
+                            </UniformGrid>
+
+                            <Button x:Name="SaveButton" Margin="0,0,0,8"
+                                    Click="SaveButton_OnClick" IsEnabled="False"/>
+
+                            <TextBlock x:Name="LiveListLabel" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="CountText" FontSize="12" Foreground="#555" Margin="0,2,0,4"/>
+                            <ListBox x:Name="LiveList" Height="160" Margin="0,0,0,8">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Text}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Duplicate}" Value="True">
+                                                            <Setter Property="Foreground" Value="#CC0000"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <TextBlock x:Name="ResultLabel" FontWeight="SemiBold"/>
+                            <TextBox x:Name="ResultBox" Height="120" IsReadOnly="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Margin="0,4,0,8"/>
+
+                            <TextBlock x:Name="HotkeysText" FontSize="11" Foreground="#777"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <TabItem x:Name="GeneratorTab" Header="Generator">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="3*" MinWidth="420"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="*" MinWidth="320"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" BorderBrush="#CCC" BorderThickness="1" Background="#F8F8F8" Padding="8">
+                        <Image x:Name="GenPreviewImage" Stretch="Uniform"/>
+                    </Border>
+
+                    <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch"/>
+
+                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="0,0,14,0">
+                            <TextBlock x:Name="GeneratorTitleText" FontSize="16" FontWeight="Bold" Margin="0,0,0,6"/>
+                            <TextBlock x:Name="GenStatusText" TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#555"/>
+
+                            <GroupBox x:Name="ParametersGroup" Header="Parameters" Padding="8" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="GenFamilyLabel" VerticalAlignment="Center"/>
+                                        <ComboBox x:Name="GenFamilyCombo" Grid.Column="1" Margin="8,0,0,0"
+                                                  SelectionChanged="GenFamilyCombo_OnSelectionChanged"/>
+                                    </Grid>
+                                    <TextBlock x:Name="GenRangeText" Margin="0,0,0,6" FontSize="12" Foreground="#555"/>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="GenCountLabel" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="GenCountBox" Grid.Column="1" Margin="8,0,0,0" Text="6"
+                                                 PreviewTextInput="GenNumeric_PreviewTextInput"
+                                                 TextChanged="GenNumeric_OnChanged"
+                                                 LostFocus="GenNumeric_OnLostFocus"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="GenStartIdLabel" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="GenStartIdBox" Grid.Column="1" Margin="8,0,0,0" Text="0"
+                                                 PreviewTextInput="GenNumeric_PreviewTextInput"
+                                                 TextChanged="GenNumeric_OnChanged"
+                                                 LostFocus="GenNumeric_OnLostFocus"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="GenPageFormatLabel" VerticalAlignment="Center"/>
+                                        <ComboBox x:Name="GenPageFormatCombo" Grid.Column="1" Margin="8,0,0,0"
+                                                  SelectionChanged="GenSettings_OnChanged"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="GenTagsPerPageLabel" VerticalAlignment="Center"/>
+                                        <ComboBox x:Name="GenTagsPerPageCombo" Grid.Column="1" Margin="8,0,0,0"
+                                                  SelectionChanged="GenSettings_OnChanged"/>
+                                    </Grid>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <TextBlock x:Name="GenInfoText" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <Button x:Name="GenExportButton" Margin="0,0,0,8"
+                                    Click="GenExportButton_OnClick"/>
+                            <TextBlock x:Name="GeneratorHintText" FontSize="11" Foreground="#777" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>

@@ -1,0 +1,21 @@
+# Build intermediates
+**/bin/
+**/obj/
+_testbuild/
+__pycache__/
+*.pyc
+
+# IDE
+.vs/
+*.user
+*.suo
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Local publish folder (same content as release zip)
+dist/
+
+# Keep release zip out of git — attach via GitHub Releases (>100 MB limit)
+release/*.zip

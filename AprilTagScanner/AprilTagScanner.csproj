@@ -1,0 +1,84 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+
+
+  <PropertyGroup>
+
+    <OutputType>WinExe</OutputType>
+
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+
+    <Nullable>enable</Nullable>
+
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <UseWPF>true</UseWPF>
+
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <AssemblyName>AprilTagScanner</AssemblyName>
+
+    <RootNamespace>AprilTagScanner</RootNamespace>
+
+    <Version>1.0.0</Version>
+
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+
+    <FileVersion>1.0.0.0</FileVersion>
+
+    <Company>AprilTag Scanner</Company>
+
+    <Product>AprilTag Scanner Pro</Product>
+
+    <Description>AprilTag webcam scanner for Windows</Description>
+
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+
+    <Copyright>Copyright (c) 2026</Copyright>
+
+    <!-- Folder publish: no self-extract to TEMP (major AV false-positive trigger). -->
+
+    <SelfContained>true</SelfContained>
+
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+
+    <PublishSingleFile>false</PublishSingleFile>
+
+    <PublishReadyToRun>true</PublishReadyToRun>
+
+    <PublishTrimmed>false</PublishTrimmed>
+    <SatelliteResourceLanguages>en;ru</SatelliteResourceLanguages>
+
+  </PropertyGroup>
+
+
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+
+    <DebugType>none</DebugType>
+
+    <DebugSymbols>false</DebugSymbols>
+
+    <Optimize>true</Optimize>
+
+  </PropertyGroup>
+
+
+
+  <ItemGroup>
+
+    <Resource Include="Assets\AppIcon.ico" />
+
+    <PackageReference Include="OpenCvSharp4" Version="4.10.0.20241108" />
+
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.10.0.20241108" />
+
+    <PackageReference Include="QuestPDF" Version="2025.1.0" />
+
+  </ItemGroup>
+
+
+
+</Project>
+
+
