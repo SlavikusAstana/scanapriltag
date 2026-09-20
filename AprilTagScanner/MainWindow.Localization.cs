@@ -76,6 +76,11 @@ public partial class MainWindow
         GenStartIdLabel.Text = L.StartId;
         GenPageFormatLabel.Text = L.PageFormat;
         GenTagsPerPageLabel.Text = L.TagsPerPage;
+        GenScanFileLabel.Text = L.S("GenScanFileLabel");
+        GenScanFileButton.Content = L.S("GenScanFileBrowse");
+        GenScanFileClearButton.Content = L.S("GenScanFileClear");
+        GenExcludeScanCheck.Content = L.S("GenExcludeScan");
+        GenCalibrationGroup.Header = L.S("GenCalibrationGroup");
         GenExportButton.Content = L.SavePdf;
         GeneratorHintText.Text = L.GeneratorHint;
 
@@ -157,25 +162,25 @@ public partial class MainWindow
     {
         if (_scanning)
         {
-            StatusText.Text = L.S("StatusScanning");
+            SetStatus(L.S("StatusScanning"));
             return;
         }
 
         if (AutoProbeMode && !_familyLocked)
         {
-            StatusText.Text = L.S("StatusShowTag");
+            SetStatus(L.S("StatusShowTag"));
             return;
         }
 
         if (MultiFamilyCheck.IsChecked == true && _familyLocked)
         {
-            StatusText.Text = L.S("StatusMultiFamily");
+            SetStatus(L.S("StatusMultiFamily"));
             return;
         }
 
         if (_familyLocked && FamilyCombo.SelectedItem is string family)
         {
-            StatusText.Text = L.F("StatusFamilyManual", TagFamilyCatalog.GetLabel(family));
+            SetStatus(L.F("StatusFamilyManual", TagFamilyCatalog.GetLabel(family)));
         }
     }
 

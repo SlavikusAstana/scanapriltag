@@ -92,4 +92,69 @@ public static class TagGeneratorService
 
     public static IReadOnlyList<int> BuildIdSequence(int startId, int count) =>
         Enumerable.Range(startId, count).ToArray();
+
+    /// <summary>
+    /// Builds <paramref name="count"/> IDs starting at <paramref name="startId"/>, skipping <paramref name="excludeIds"/>.
+    /// </summary>
+    public static bool TryBuildIdSequenceExcluding(
+        string family,
+        int startId,
+        int count,
+        IReadOnlySet<int> excludeIds,
+        out IReadOnlyList<int> ids,
+        out string error)
+    {
+        ids = [];
+        error = "";
+        var maxId = GetMaxId(family);
+        var label = TagFamilyCatalog.GetLabel(family);
+
+        if (count < 1)
+        {
+            error = L.S("ValCountMin");
+            return false;
+        }
+
+        if (startId < 0)
+        {
+            error = L.S("ValStartIdNegative");
+            return false;
+        }
+
+        if (startId > maxId)
+        {
+            error = L.F("ValStartIdTooBig", startId, maxId, label);
+            return false;
+        }
+
+        var result = new List<int>(count);
+        for (var id = startId; id <= maxId && result.Count < count; id++)
+        {
+            if (excludeIds.Contains(id))
+                continue;
+
+            result.Add(id);
+        }
+
+        if (result.Count < count)
+        {
+            error = L.F("GenExcludeNotEnough", count, result.Count, maxId);
+            return false;
+        }
+
+        ids = result;
+        return true;
+    }
+
+    public static int CountAvailableIds(int startId, int maxId, IReadOnlySet<int> excludeIds)
+    {
+        var count = 0;
+        for (var id = startId; id <= maxId; id++)
+        {
+            if (!excludeIds.Contains(id))
+                count++;
+        }
+
+        return count;
+    }
 }

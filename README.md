@@ -24,11 +24,14 @@
 
 
 
-## Требования для сборки
+## Платформы
 
+| Платформа | Папка | Сборка |
+|-----------|-------|--------|
+| Windows | `AprilTagScanner/` | `build.bat` |
+| Android | `AprilTagScannerAndroid/` | Android Studio или `gradlew assembleDebug` |
 
-
-- [.NET 9 SDK](https://dotnet.microsoft.com/download)
+## Требования для сборки (Windows)
 
 - Windows 10/11
 

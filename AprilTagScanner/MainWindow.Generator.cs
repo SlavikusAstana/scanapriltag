@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using AprilTagScanner.Localization;
+using AprilTagScanner.Models;
 using AprilTagScanner.Services;
 using Microsoft.Win32;
 
@@ -19,6 +20,7 @@ public partial class MainWindow
     private CancellationTokenSource? _previewCts;
     private int _previewGeneration;
     private bool _genExportRunning;
+    private ScannedTagsFile? _scannedTagsFile;
     private readonly DispatcherTimer _previewDebounce = new() { Interval = TimeSpan.FromMilliseconds(300) };
 
     private void InitGeneratorTab()
@@ -41,6 +43,7 @@ public partial class MainWindow
         GenTagsPerPageCombo.SelectedItem = 6;
 
         UpdateGeneratorRangeHint();
+        UpdateScanFileUi();
         RefreshGeneratorUi();
     }
 
@@ -67,6 +70,7 @@ public partial class MainWindow
             return;
 
         UpdateGeneratorRangeHint();
+        UpdateScanFileUi();
         ConstrainGeneratorInputs(notify: true);
         RefreshGeneratorUi();
     }
@@ -77,6 +81,92 @@ public partial class MainWindow
             return;
 
         RefreshGeneratorUi();
+    }
+
+    private void GenExcludeScanCheck_OnChanged(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded)
+            return;
+
+        ConstrainGeneratorInputs(notify: true);
+        RefreshGeneratorUi();
+    }
+
+    private void GenScanFileButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog
+        {
+            Title = L.S("GenScanFileDialogTitle"),
+            Filter = L.S("GenScanFileDialogFilter"),
+        };
+
+        if (!string.IsNullOrWhiteSpace(GenScanFileBox.Text) && File.Exists(GenScanFileBox.Text))
+            dlg.InitialDirectory = Path.GetDirectoryName(GenScanFileBox.Text);
+
+        if (dlg.ShowDialog() != true)
+            return;
+
+        LoadScannedTagsFile(dlg.FileName);
+    }
+
+    private void GenScanFileClearButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        _scannedTagsFile = null;
+        GenScanFileBox.Text = "";
+        GenExcludeScanCheck.IsChecked = false;
+        UpdateScanFileUi();
+        RefreshGeneratorUi();
+    }
+
+    private void LoadScannedTagsFile(string path)
+    {
+        if (!ScannedTagsImport.TryLoad(path, out var file, out var error))
+        {
+            MessageBox.Show(error, L.GeneratorTitleDlg, MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        _scannedTagsFile = file;
+        GenScanFileBox.Text = path;
+        UpdateScanFileUi();
+        RefreshGeneratorUi();
+    }
+
+    private void UpdateScanFileUi()
+    {
+        var hasFile = _scannedTagsFile != null;
+        GenScanFileClearButton.IsEnabled = hasFile;
+        GenExcludeScanCheck.IsEnabled = hasFile && GetExcludedIdsForSelectedFamily().Count > 0;
+
+        if (!hasFile)
+        {
+            GenScanFileInfoText.Text = "";
+            GenExcludeScanCheck.IsChecked = false;
+            return;
+        }
+
+        if (GenFamilyCombo.SelectedItem is not string family)
+        {
+            GenScanFileInfoText.Text = "";
+            return;
+        }
+
+        var familyIds = _scannedTagsFile!.Tags.Where(t => t.Family == family).Select(t => t.Id).ToList();
+        var unique = familyIds.Distinct().Count();
+        GenScanFileInfoText.Text = familyIds.Count == 0
+            ? L.F("GenScanFileLoaded", 0, TagFamilyCatalog.GetLabel(family), 0)
+            : L.F("GenScanFileLoaded", familyIds.Count, TagFamilyCatalog.GetLabel(family), unique);
+
+        if (GenExcludeScanCheck.IsChecked == true && unique == 0)
+            GenExcludeScanCheck.IsChecked = false;
+    }
+
+    private HashSet<int> GetExcludedIdsForSelectedFamily()
+    {
+        if (_scannedTagsFile == null || GenFamilyCombo.SelectedItem is not string family)
+            return [];
+
+        return _scannedTagsFile.GetIdsForFamily(family).ToHashSet();
     }
 
     private void GenNumeric_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -114,20 +204,27 @@ public partial class MainWindow
 
     private void RefreshGeneratorUi(bool liveOnly = false)
     {
+        UpdateCalibrationText();
+        UpdateScanFileUi();
+
         if (!TryReadGeneratorSettings(out var settings, out var error))
         {
             GenInfoText.Text = error;
             GenInfoText.Foreground = new SolidColorBrush(Color.FromRgb(0xCC, 0x00, 0x00));
-            GenStatusText.Text = error;
+            SetStatus(error);
             GenExportButton.IsEnabled = false;
             GenPreviewImage.Source = null;
             return;
         }
 
         GenInfoText.Foreground = new SolidColorBrush(Colors.Black);
-        var pages = (settings.Count + settings.TagsPerPage - 1) / settings.TagsPerPage;
-        var lastId = settings.StartId + settings.Count - 1;
-        GenInfoText.Text = L.F("GenSummary", settings.Count, settings.StartId, lastId, pages);
+        var pages = (settings.Ids.Count + settings.TagsPerPage - 1) / settings.TagsPerPage;
+        var firstId = settings.Ids[0];
+        var lastId = settings.Ids[^1];
+
+        GenInfoText.Text = settings.ExcludeFromFile
+            ? L.F("GenSummaryExclude", settings.Ids.Count, firstId, lastId, settings.ExcludedCount, pages)
+            : L.F("GenSummary", settings.Ids.Count, firstId, lastId, pages);
         GenExportButton.IsEnabled = true;
 
         if (liveOnly)
@@ -136,7 +233,14 @@ public partial class MainWindow
         if (MainTab.SelectedIndex == 1)
             ScheduleGeneratorPreview();
         else if (!_genHasCorrectionMessage)
-            GenStatusText.Text = "";
+            SetStatus("");
+    }
+
+    private void UpdateCalibrationText()
+    {
+        var tagsPerPage = ReadTagsPerPage(GenTagsPerPageCombo);
+        var pageFormat = GenPageFormatCombo.SelectedItem is PageFormat format ? format : PageFormat.A4;
+        GenCalibrationText.Text = TagLayoutSpec.FormatCalibrationText(pageFormat, tagsPerPage);
     }
 
     private void ConstrainGeneratorInputs(bool notify)
@@ -148,6 +252,8 @@ public partial class MainWindow
         var label = TagFamilyCatalog.GetLabel(family);
         var startId = ParseGenInt(GenStartIdBox.Text, 0);
         var count = ParseGenInt(GenCountBox.Text, 1);
+        var exclude = GenExcludeScanCheck.IsChecked == true;
+        var excludeIds = exclude ? GetExcludedIdsForSelectedFamily() : [];
         string? message = null;
         var changed = false;
 
@@ -166,7 +272,10 @@ public partial class MainWindow
             changed = true;
         }
 
-        var maxCount = maxId - startId + 1;
+        var maxCount = exclude
+            ? TagGeneratorService.CountAvailableIds(startId, maxId, excludeIds)
+            : maxId - startId + 1;
+
         if (string.IsNullOrWhiteSpace(GenCountBox.Text))
         {
             count = 1;
@@ -181,9 +290,18 @@ public partial class MainWindow
             SetGenText(GenCountBox, "1");
             changed = true;
         }
+        else if (maxCount < 1)
+        {
+            message = L.F("GenExcludeNotEnough", count, 0, maxId);
+            count = 1;
+            SetGenText(GenCountBox, "1");
+            changed = true;
+        }
         else if (count > maxCount)
         {
-            message = L.F("GenCountMaxFixed", startId, maxCount, maxId);
+            message = exclude
+                ? L.F("GenExcludeNotEnough", count, maxCount, maxId)
+                : L.F("GenCountMaxFixed", startId, maxCount, maxId);
             count = maxCount;
             SetGenText(GenCountBox, count.ToString());
             changed = true;
@@ -192,7 +310,7 @@ public partial class MainWindow
         if (notify && changed && message != null)
         {
             _genHasCorrectionMessage = true;
-            GenStatusText.Text = message;
+            SetStatus(message);
         }
     }
 
@@ -234,16 +352,15 @@ public partial class MainWindow
         }
 
         if (!_genHasCorrectionMessage)
-            GenStatusText.Text = L.S("GenPreviewWorking");
+            SetStatus(L.S("GenPreviewWorking"));
 
         var previewSettings = settings;
         Task.Run(() =>
         {
             token.ThrowIfCancellationRequested();
-            return TagPdfExporter.RenderFirstPagePreview(
+            return TagPdfExporter.RenderFirstPagePreviewIds(
                 previewSettings.Family,
-                previewSettings.StartId,
-                previewSettings.Count,
+                previewSettings.Ids,
                 previewSettings.TagsPerPage,
                 previewSettings.PageFormat);
         }, token).ContinueWith(t =>
@@ -259,9 +376,9 @@ public partial class MainWindow
                 if (t.IsFaulted)
                 {
                     GenPreviewImage.Source = null;
-                    GenStatusText.Text = L.F(
+                    SetStatus(L.F(
                         "GenPreviewFailed",
-                        t.Exception?.GetBaseException().Message ?? "unknown");
+                        t.Exception?.GetBaseException().Message ?? "unknown"));
                     return;
                 }
 
@@ -269,12 +386,12 @@ public partial class MainWindow
                 {
                     GenPreviewImage.Source = PngBytesToBitmap(t.Result);
                     if (!_genHasCorrectionMessage)
-                        GenStatusText.Text = L.S("GenPreview");
+                        SetStatus(L.S("GenPreview"));
                 }
                 catch (Exception ex)
                 {
                     GenPreviewImage.Source = null;
-                    GenStatusText.Text = L.F("GenPreviewFailed", ex.Message);
+                    SetStatus(L.F("GenPreviewFailed", ex.Message));
                 }
             });
         }, TaskScheduler.Default);
@@ -306,7 +423,7 @@ public partial class MainWindow
         {
             Title = L.S("GenPdfDialogTitle"),
             Filter = L.S("GenPdfDialogFilter"),
-            FileName = $"apriltag_{familyShort}_{settings.StartId}_{settings.Count}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf",
+            FileName = $"apriltag_{familyShort}_{settings.Ids[0]}_{settings.Ids.Count}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf",
         };
 
         if (dlg.ShowDialog() != true)
@@ -315,17 +432,17 @@ public partial class MainWindow
         var path = dlg.FileName;
         _genExportRunning = true;
         GenExportButton.IsEnabled = false;
-        GenStatusText.Text = L.S("GenPdfWorking");
+        SetStatus(L.S("GenPdfWorking"));
 
+        var exportSettings = settings;
         Task.Run(() =>
         {
-            TagPdfExporter.Export(
+            TagPdfExporter.ExportIds(
                 path,
-                settings.Family,
-                settings.StartId,
-                settings.Count,
-                settings.TagsPerPage,
-                settings.PageFormat);
+                exportSettings.Family,
+                exportSettings.Ids,
+                exportSettings.TagsPerPage,
+                exportSettings.PageFormat);
         }).ContinueWith(t =>
         {
             Dispatcher.BeginInvoke(() =>
@@ -344,7 +461,7 @@ public partial class MainWindow
                 }
 
                 _genHasCorrectionMessage = false;
-                GenStatusText.Text = L.F("GenPdfSaved", Path.GetFileName(path));
+                SetStatus(L.F("GenPdfSaved", Path.GetFileName(path)));
                 MessageBox.Show(L.F("GenPdfSaveSuccess", path), L.GeneratorTitleDlg,
                     MessageBoxButton.OK, MessageBoxImage.Information);
             });
@@ -382,6 +499,7 @@ public partial class MainWindow
 
         var maxId = TagGeneratorService.GetMaxId(family);
         var label = TagFamilyCatalog.GetLabel(family);
+        var excludeFromFile = GenExcludeScanCheck.IsChecked == true;
 
         if (startId < 0)
         {
@@ -401,16 +519,53 @@ public partial class MainWindow
             return false;
         }
 
-        var lastId = startId + count - 1;
-        if (lastId > maxId)
+        IReadOnlyList<int> ids;
+        var excludedCount = 0;
+
+        if (excludeFromFile)
         {
-            error = L.F("ValRangeOverflow", startId, lastId, label, maxId);
-            return false;
+            if (_scannedTagsFile == null)
+            {
+                error = L.S("GenScanFileNoFamily");
+                return false;
+            }
+
+            var excludeIds = GetExcludedIdsForSelectedFamily();
+            if (excludeIds.Count == 0)
+            {
+                error = L.S("GenScanFileEmpty");
+                return false;
+            }
+
+            if (!TagGeneratorService.TryBuildIdSequenceExcluding(
+                    family, startId, count, excludeIds, out ids, out error))
+                return false;
+
+            excludedCount = excludeIds.Count;
+        }
+        else
+        {
+            var lastId = startId + count - 1;
+            if (lastId > maxId)
+            {
+                error = L.F("ValRangeOverflow", startId, lastId, label, maxId);
+                return false;
+            }
+
+            ids = TagGeneratorService.BuildIdSequence(startId, count);
         }
 
         var tagsPerPage = ReadTagsPerPage(GenTagsPerPageCombo);
         var pageFormat = GenPageFormatCombo.SelectedItem is PageFormat format ? format : PageFormat.A4;
-        settings = new GeneratorSettings(family, count, startId, tagsPerPage, pageFormat);
+        settings = new GeneratorSettings(
+            family,
+            startId,
+            count,
+            tagsPerPage,
+            pageFormat,
+            ids,
+            excludeFromFile,
+            excludedCount);
         return true;
     }
 
@@ -436,8 +591,11 @@ public partial class MainWindow
 
     private readonly record struct GeneratorSettings(
         string Family,
-        int Count,
         int StartId,
+        int Count,
         int TagsPerPage,
-        PageFormat PageFormat);
+        PageFormat PageFormat,
+        IReadOnlyList<int> Ids,
+        bool ExcludeFromFile,
+        int ExcludedCount);
 }

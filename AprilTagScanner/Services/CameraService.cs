@@ -17,10 +17,18 @@ public sealed class CameraService : IDisposable
     public static CameraOpenResult OpenWithTimeout(int index, TimeSpan timeout)
     {
         var task = Task.Run(() => OpenWithRetries(index));
-        if (!task.Wait(timeout))
-            return CameraOpenResult.Fail(index, CameraErrorKind.Timeout);
+        if (task.Wait(timeout))
+            return task.Result;
 
-        return task.Result;
+        _ = task.ContinueWith(t =>
+        {
+            if (t.Status != TaskStatus.RanToCompletion)
+                return;
+            if (t.Result.Success)
+                t.Result.Capture?.Dispose();
+        }, TaskContinuationOptions.OnlyOnRanToCompletion);
+
+        return CameraOpenResult.Fail(index, CameraErrorKind.Timeout);
     }
 
     private static CameraOpenResult OpenWithRetries(int index)
@@ -109,15 +117,26 @@ public sealed class CameraService : IDisposable
         }
     }
 
-    public bool TryRead(out Mat frame)
+    public bool TryRead(out Mat? frame)
     {
-        frame = new Mat();
         lock (_lock)
         {
             if (_capture == null || !_capture.IsOpened())
+            {
+                frame = null;
                 return false;
+            }
 
-            return _capture.Read(frame) && !frame.Empty();
+            var mat = new Mat();
+            if (_capture.Read(mat) && !mat.Empty())
+            {
+                frame = mat;
+                return true;
+            }
+
+            mat.Dispose();
+            frame = null;
+            return false;
         }
     }
 

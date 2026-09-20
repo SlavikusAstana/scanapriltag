@@ -20,7 +20,16 @@ public static class TagPdfExporter
         PageFormat pageFormat)
     {
         var ids = TagGeneratorService.BuildIdSequence(startId, count);
+        ExportIds(path, family, ids, tagsPerPage, pageFormat);
+    }
 
+    public static void ExportIds(
+        string path,
+        string family,
+        IReadOnlyList<int> ids,
+        int tagsPerPage,
+        PageFormat pageFormat)
+    {
         Document.Create(document =>
         {
             for (var offset = 0; offset < ids.Count; offset += tagsPerPage)
@@ -43,6 +52,15 @@ public static class TagPdfExporter
         PageFormat pageFormat)
     {
         var ids = TagGeneratorService.BuildIdSequence(startId, count);
+        return RenderFirstPagePreviewIds(family, ids, tagsPerPage, pageFormat);
+    }
+
+    public static byte[] RenderFirstPagePreviewIds(
+        string family,
+        IReadOnlyList<int> ids,
+        int tagsPerPage,
+        PageFormat pageFormat)
+    {
         var pageIds = ids.Take(tagsPerPage).ToList();
 
         return Document.Create(document =>
@@ -83,13 +101,13 @@ public static class TagPdfExporter
 
         if (tagsPerPage == 1)
         {
-            page.MarginTop(20, Unit.Millimetre);
-            page.MarginBottom(10, Unit.Millimetre);
-            page.MarginHorizontal(10, Unit.Millimetre);
+            page.MarginTop(TagLayoutSpec.SingleMarginTopMm, Unit.Millimetre);
+            page.MarginBottom(TagLayoutSpec.SingleMarginBottomMm, Unit.Millimetre);
+            page.MarginHorizontal(TagLayoutSpec.SingleMarginHorizontalMm, Unit.Millimetre);
             return;
         }
 
-        page.Margin(10, Unit.Millimetre);
+        page.Margin(TagLayoutSpec.GridMarginMm, Unit.Millimetre);
     }
 
     private static void ComposePage(IContainer container, string family, IReadOnlyList<int> ids, int tagsPerPage, bool forPreview)
@@ -98,19 +116,18 @@ public static class TagPdfExporter
         {
             var id = ids[0];
             var png = RenderMarkerImage(family, id, tagsPerPage, forPreview);
-            const float tagSizeMm = 185f;
 
             container.AlignTop().AlignCenter().Column(column =>
             {
                 column.Item()
-                    .Width(tagSizeMm, Unit.Millimetre)
-                    .Height(tagSizeMm, Unit.Millimetre)
+                    .Width(TagLayoutSpec.SingleTagSizeMm, Unit.Millimetre)
+                    .Height(TagLayoutSpec.SingleTagSizeMm, Unit.Millimetre)
                     .Image(png)
                     .FitArea();
 
                 column.Item()
                     .ExtendHorizontal()
-                    .PaddingTop(8, Unit.Millimetre)
+                    .PaddingTop(TagLayoutSpec.SingleLabelGapMm, Unit.Millimetre)
                     .Text(text =>
                     {
                         text.AlignCenter();
@@ -120,34 +137,43 @@ public static class TagPdfExporter
             return;
         }
 
+        var edgeGapMm = TagLayoutSpec.GridEdgeGapMm;
+
         container.AlignTop().Column(column =>
         {
-            const float tagSizeMm = 88f;
-            const float rowGapMm = 6f;
-
-            for (var row = 0; row < 3; row++)
+            for (var row = 0; row < TagLayoutSpec.GridRows; row++)
             {
                 column.Item()
-                    .PaddingBottom(row < 2 ? rowGapMm : 0, Unit.Millimetre)
+                    .PaddingBottom(row < TagLayoutSpec.GridRows - 1 ? edgeGapMm : 0, Unit.Millimetre)
                     .Row(rowLayout =>
                     {
-                        for (var col = 0; col < 2; col++)
+                        rowLayout.RelativeItem();
+
+                        for (var col = 0; col < TagLayoutSpec.GridCols; col++)
                         {
-                            var index = row * 2 + col;
+                            if (col > 0)
+                            {
+                                rowLayout.ConstantItem(edgeGapMm, Unit.Millimetre)
+                                    .Height(TagLayoutSpec.GridTagSizeMm, Unit.Millimetre);
+                            }
+
+                            var index = row * TagLayoutSpec.GridCols + col;
                             if (index >= ids.Count)
                             {
-                                rowLayout.RelativeItem();
+                                rowLayout.ConstantItem(TagLayoutSpec.GridTagSizeMm, Unit.Millimetre)
+                                    .Height(TagLayoutSpec.GridTagSizeMm, Unit.Millimetre);
                                 continue;
                             }
 
                             var id = ids[index];
                             var png = RenderMarkerImage(family, id, tagsPerPage, forPreview);
-                            rowLayout.RelativeItem().AlignCenter()
-                                .Width(tagSizeMm, Unit.Millimetre)
-                                .Height(tagSizeMm, Unit.Millimetre)
+                            rowLayout.ConstantItem(TagLayoutSpec.GridTagSizeMm, Unit.Millimetre)
+                                .Height(TagLayoutSpec.GridTagSizeMm, Unit.Millimetre)
                                 .Image(png)
                                 .FitArea();
                         }
+
+                        rowLayout.RelativeItem();
                     });
             }
         });

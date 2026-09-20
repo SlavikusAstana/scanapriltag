@@ -7,6 +7,7 @@ scan.py
 requirements.txt
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # IDE
 .vs/
@@ -19,6 +20,30 @@ Desktop.ini
 
 # Local publish folder (same content as release zip)
 dist/
+
+# Built release binaries / local samples (not source)
+release/*.apk
+release/*.zip
+release/*.exe
+*.pdf
+apriltag_scan_*.csv
+AprilTagE57Tool/test_output.csv
+tools/*.mp4
+tools/phone_screen*.png
+tools/e57_tag_test_*.jpg
+tools/sample_video_probe.json
+
+# Android build outputs
+AprilTagScannerAndroid/.gradle/
+AprilTagScannerAndroid/.gradle-cache/
+AprilTagScannerAndroid/build/
+AprilTagScannerAndroid/app/build/
+AprilTagScannerAndroid/local.properties
+AprilTagScannerAndroid/.idea/
+AprilTagScannerAndroid/keystore.properties
+AprilTagScannerAndroid/*.keystore
+AprilTagScannerAndroid/*.jks
+AprilTagScannerAndroid/release.keystore
 
 # Local publish helper (not in repo)
 publish-github.bat

@@ -20,11 +20,11 @@
 
     <RootNamespace>AprilTagScanner</RootNamespace>
 
-    <Version>1.0.0</Version>
+    <Version>0.3.0</Version>
 
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <AssemblyVersion>0.3.0.0</AssemblyVersion>
 
-    <FileVersion>1.0.0.0</FileVersion>
+    <FileVersion>0.3.0.0</FileVersion>
 
     <Company>AprilTag Scanner</Company>
 

@@ -159,6 +159,8 @@ public sealed class DetectionEngine : IDisposable
                     localCacheVersion = _cacheVersion;
                 }
 
+                parameters.AprilTagQuadDecimate = _decimate;
+
                 foreach (var family in families)
                 {
                     var dict = GetDictionary(family, probe);

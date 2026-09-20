@@ -10,6 +10,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
@@ -44,7 +45,6 @@
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="0,0,14,0">
                             <TextBlock x:Name="AppTitleText" FontSize="16" FontWeight="Bold" Margin="0,0,0,6"/>
-                            <TextBlock x:Name="StatusText" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
                             <GroupBox x:Name="SettingsGroup" Header="Settings" Padding="8" Margin="0,0,0,8">
                                 <StackPanel>
@@ -84,9 +84,11 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock x:Name="MissLabel" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="MissBox" Grid.Column="1" Width="40" Margin="8,0,0,0" Text="8"/>
+                                        <TextBox x:Name="MissBox" Grid.Column="1" Width="40" Margin="8,0,0,0" Text="8"
+                                                 LostFocus="MissBox_OnLostFocus"/>
                                     </Grid>
-                                    <CheckBox x:Name="BeepCheck" IsChecked="True"/>
+                                    <CheckBox x:Name="BeepCheck" IsChecked="True"
+                                              Checked="BeepCheck_OnChanged" Unchecked="BeepCheck_OnChanged"/>
                                 </StackPanel>
                             </GroupBox>
 
@@ -151,7 +153,6 @@
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="0,0,14,0">
                             <TextBlock x:Name="GeneratorTitleText" FontSize="16" FontWeight="Bold" Margin="0,0,0,6"/>
-                            <TextBlock x:Name="GenStatusText" TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#555"/>
 
                             <GroupBox x:Name="ParametersGroup" Header="Parameters" Padding="8" Margin="0,0,0,8">
                                 <StackPanel>
@@ -165,6 +166,27 @@
                                                   SelectionChanged="GenFamilyCombo_OnSelectionChanged"/>
                                     </Grid>
                                     <TextBlock x:Name="GenRangeText" Margin="0,0,0,6" FontSize="12" Foreground="#555"/>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="GenScanFileLabel" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="GenScanFileBox" Grid.Column="1" Margin="8,0,8,0"
+                                                 IsReadOnly="True" IsReadOnlyCaretVisible="True"/>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                            <Button x:Name="GenScanFileButton" MinWidth="72"
+                                                    Click="GenScanFileButton_OnClick"/>
+                                            <Button x:Name="GenScanFileClearButton" MinWidth="72" Margin="4,0,0,0"
+                                                    Click="GenScanFileClearButton_OnClick"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <TextBlock x:Name="GenScanFileInfoText" Margin="0,0,0,6" FontSize="12"
+                                               Foreground="#555" TextWrapping="Wrap"/>
+                                    <CheckBox x:Name="GenExcludeScanCheck" Margin="0,0,0,6"
+                                              Checked="GenExcludeScanCheck_OnChanged"
+                                              Unchecked="GenExcludeScanCheck_OnChanged"/>
                                     <Grid Margin="0,0,0,6">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -208,6 +230,10 @@
                                 </StackPanel>
                             </GroupBox>
 
+                            <GroupBox x:Name="GenCalibrationGroup" Header="Calibration" Padding="8" Margin="0,0,0,8">
+                                <TextBlock x:Name="GenCalibrationText" TextWrapping="Wrap" FontSize="12" Foreground="#555"/>
+                            </GroupBox>
+
                             <TextBlock x:Name="GenInfoText" TextWrapping="Wrap" Margin="0,0,0,8"/>
                             <Button x:Name="GenExportButton" Margin="0,0,0,8"
                                     Click="GenExportButton_OnClick"/>
@@ -217,5 +243,17 @@
                 </Grid>
             </TabItem>
         </TabControl>
+
+        <Border Grid.Row="2" BorderBrush="#CCC" BorderThickness="0,1,0,0" Padding="8,4" Margin="0,8,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="AppStatusText" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="#555"/>
+                <TextBlock x:Name="AppVersionText" Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0"
+                           Foreground="#777"/>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

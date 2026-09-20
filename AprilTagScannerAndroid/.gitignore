@@ -1,0 +1,14 @@
+# Android / Gradle
+AprilTagScannerAndroid/.gradle/
+AprilTagScannerAndroid/build/
+AprilTagScannerAndroid/app/build/
+AprilTagScannerAndroid/local.properties
+AprilTagScannerAndroid/.idea/
+AprilTagScannerAndroid/*.iml
+AprilTagScannerAndroid/app/*.iml
+AprilTagScannerAndroid/captures/
+AprilTagScannerAndroid/.cxx/
+AprilTagScannerAndroid/keystore.properties
+AprilTagScannerAndroid/*.keystore
+AprilTagScannerAndroid/*.jks
+AprilTagScannerAndroid/release.keystore

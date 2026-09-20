@@ -33,6 +33,9 @@ public partial class MainWindow
     private bool _refreshingCameras;
     private string _selectedFamily = "tag36h11";
     private SpeedPreset _preset = SpeedPreset.Balanced;
+    private bool _applyingSettings;
+    private string _preferredCameraName = "";
+    private int _preferredCameraIndex;
 
     private string? _probeCandidateFamily;
     private int _probeCandidateId = -1;
@@ -51,14 +54,15 @@ public partial class MainWindow
 
         InitPresetCombo();
         InitCameraCombo();
-
         InitLanguageSelector();
+        ApplySavedScannerSettings();
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         _timer.Tick += FrameTimer_OnTick;
 
         Loaded += (_, _) =>
         {
+            AppVersionText.Text = AppInfo.VersionLabel;
             InitGeneratorTab();
             ApplyLocalization();
             RefreshCameraList(startCameraAfter: true);
@@ -75,6 +79,10 @@ public partial class MainWindow
 
     private bool AutoProbeMode => !_scanning && !_familyLocked && MultiFamilyCheck.IsChecked != true;
 
+    private bool IncludeFamilyInLabels =>
+        MultiFamilyCheck.IsChecked == true ||
+        TagLabels.SessionNeedsFamily(_session.Records, multiFamily: false);
+
     private IReadOnlyList<string> ActiveFamilies()
     {
         if (MultiFamilyCheck.IsChecked == true)
@@ -84,18 +92,20 @@ public partial class MainWindow
 
     private string FamiliesDescription() => string.Join(", ", ActiveFamilies());
 
+    private void SetStatus(string text) => AppStatusText.Text = text;
+
     private void StartCamera()
     {
         var index = GetSelectedCameraIndex();
         if (index < 0)
         {
-            StatusText.Text = L.S("CameraNoneFound");
+            SetStatus(L.S("CameraNoneFound"));
             StartButton.IsEnabled = false;
             ResetButton.IsEnabled = false;
             return;
         }
 
-        StatusText.Text = L.S("CameraConnecting");
+        SetStatus(L.S("CameraConnecting"));
 
         Task.Run(() =>
         {
@@ -109,7 +119,7 @@ public partial class MainWindow
             {
                 Dispatcher.BeginInvoke(() =>
                 {
-                    StatusText.Text = L.F("CameraErrorStatus", ex.Message);
+                    SetStatus(L.F("CameraErrorStatus", ex.Message));
                     StartButton.IsEnabled = false;
                     ResetButton.IsEnabled = false;
                 });
@@ -121,10 +131,10 @@ public partial class MainWindow
     {
         if (!result.Success || result.Capture == null)
         {
-            StatusText.Text = L.F(
+            SetStatus(L.F(
                 "CameraOpenFailedStatus",
                 result.Index,
-                DescribeCameraError(result));
+                DescribeCameraError(result)));
             StartButton.IsEnabled = false;
             ResetButton.IsEnabled = false;
             return;
@@ -133,8 +143,7 @@ public partial class MainWindow
         _camera.Attach(result.Capture);
         _currentCameraIndex = result.Index;
         ApplyDetectorConfig();
-        StatusText.Text =
-            L.F("CameraReady", result.Index, result.Backend);
+        SetStatus(L.F("CameraReady", result.Index, result.Backend));
         StartButton.IsEnabled = true;
         ResetButton.IsEnabled = true;
         if (!_timer.IsEnabled)
@@ -161,7 +170,7 @@ public partial class MainWindow
 
     private void FrameTimer_OnTick(object? sender, EventArgs e)
     {
-        if (!_camera.TryRead(out var frame))
+        if (!_camera.TryRead(out var frame) || frame is null)
             return;
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -179,12 +188,12 @@ public partial class MainWindow
                 var suffix = record.Duplicate ? L.S("DuplicateMark") : "";
                 _liveLines.Add(new LiveLine
                 {
-                    Text = $"{_session.Records.Count}. {record.Label}{suffix}",
+                    Text = $"{_session.Records.Count}. {record.DisplayLabel(IncludeFamilyInLabels)}{suffix}",
                     Duplicate = record.Duplicate,
                 });
                 if (record.Duplicate)
                 {
-                    StatusText.Text = L.F("StatusDuplicate", record.Label);
+                    SetStatus(L.F("StatusDuplicate", record.DisplayLabel(IncludeFamilyInLabels)));
                     if (BeepCheck.IsChecked == true)
                         System.Media.SystemSounds.Exclamation.Play();
                 }
@@ -248,8 +257,7 @@ public partial class MainWindow
         _familyLocked = true;
         _probeFamilyIndex = 0;
         ApplyDetectorConfig();
-        StatusText.Text =
-            L.F("StatusFamilyDetected", TagFamilyCatalog.GetLabel(tag.Family), tag.Id);
+        SetStatus(L.F("StatusFamilyDetected", TagFamilyCatalog.GetLabel(tag.Family), tag.Id));
     }
 
     private void DrawTags(Mat frame, IReadOnlyList<DetectedTag> tags)
@@ -263,11 +271,12 @@ public partial class MainWindow
             for (var i = 0; i < 4; i++)
                 Cv2.Line(frame, pts[i], pts[(i + 1) % 4], color, dup ? 3 : 2);
 
+            var idText = TagLabels.Format(tag.Family, tag.Id, IncludeFamilyInLabels);
             var label = probing
-                ? $"{tag.Id}?"
+                ? $"{idText}?"
                 : dup
-                    ? $"{tag.Id} {L.S("OverlayDup")}"
-                    : tag.Id.ToString();
+                    ? $"{idText} {L.S("OverlayDup")}"
+                    : idText;
             Cv2.PutText(frame, label, new OpenCvSharp.Point((int)tag.Center.X - 20, (int)tag.Center.Y + 6),
                 HersheyFonts.HersheySimplex, 0.55, color, 2);
         }
@@ -328,6 +337,7 @@ public partial class MainWindow
         _timer.Stop();
         _camera.Close();
         _currentCameraIndex = -1;
+        PersistSettings();
 
         Task.Run(async () =>
         {
@@ -367,11 +377,11 @@ public partial class MainWindow
         _refreshingCameras = true;
         CameraCombo.IsEnabled = false;
         ReconnectButton.IsEnabled = false;
-        StatusText.Text = L.S("CameraSearching");
+        SetStatus(L.S("CameraSearching"));
 
         var preferredIndex = GetSelectedCameraIndex();
         if (preferredIndex < 0)
-            preferredIndex = _currentCameraIndex >= 0 ? _currentCameraIndex : 0;
+            preferredIndex = _preferredCameraIndex >= 0 ? _preferredCameraIndex : 0;
 
         Task.Run(CameraEnumerator.Enumerate)
             .ContinueWith(task =>
@@ -391,13 +401,17 @@ public partial class MainWindow
                             ResetButton.IsEnabled = false;
                             CameraCombo.ItemsSource = new[] { CreateNoCameraPlaceholder() };
                             CameraCombo.SelectedIndex = 0;
-                            StatusText.Text = L.S("CameraNoneFound");
+                            SetStatus(L.S("CameraNoneFound"));
                             MainTab.SelectedIndex = 1;
                             return;
                         }
 
                         CameraCombo.ItemsSource = cameras;
-                        var selected = cameras.FirstOrDefault(c => c.Index == preferredIndex) ?? cameras[0];
+                        var selected = cameras.FirstOrDefault(c =>
+                                _preferredCameraName.Length > 0 &&
+                                string.Equals(c.Name, _preferredCameraName, StringComparison.OrdinalIgnoreCase))
+                            ?? cameras.FirstOrDefault(c => c.Index == preferredIndex)
+                            ?? cameras[0];
                         CameraCombo.SelectedItem = selected;
 
                         if (startCameraAfter)
@@ -472,7 +486,7 @@ public partial class MainWindow
 
         _scanning = true;
         _session.ClearTracking();
-        StatusText.Text = L.S("StatusScanning");
+        SetStatus(L.S("StatusScanning"));
         StartButton.IsEnabled = false;
         StopButton.IsEnabled = true;
         SaveButton.IsEnabled = false;
@@ -492,9 +506,10 @@ public partial class MainWindow
         ResultBox.Text = report;
 
         var summary = _session.Duplicates.Count > 0
-            ? L.F("StatusDoneDup", string.Join(", ", _session.Duplicates.Select(d => d.Id.ToString())))
+            ? L.F("StatusDoneDup", string.Join(", ", _session.Duplicates.Select(d =>
+                TagLabels.Format(d.Family, d.Id, IncludeFamilyInLabels))))
             : L.S("StatusDoneNoDup");
-        StatusText.Text = summary;
+        SetStatus(summary);
         MessageBox.Show(summary, L.ResultTitle,
             MessageBoxButton.OK,
             _session.Duplicates.Count > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
@@ -510,7 +525,7 @@ public partial class MainWindow
         _probeFamilyIndex = 0;
         _probeCandidateStreak = 0;
         ApplyDetectorConfig();
-        StatusText.Text = L.S("StatusShowTag");
+        SetStatus(L.S("StatusShowTag"));
         UpdateCount(0);
         StartButton.IsEnabled = true;
         StopButton.IsEnabled = false;
@@ -547,33 +562,101 @@ public partial class MainWindow
 
     private void FamilyCombo_OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
-        if (FamilyCombo.SelectedItem is not string family || _scanning)
+        if (_applyingSettings || FamilyCombo.SelectedItem is not string family || _scanning)
             return;
         _selectedFamily = family;
         _familyLocked = true;
         ApplyDetectorConfig();
-        StatusText.Text = L.F("StatusFamilyManual", TagFamilyCatalog.GetLabel(family));
+        SetStatus(L.F("StatusFamilyManual", TagFamilyCatalog.GetLabel(family)));
     }
 
     private void MultiFamilyCheck_OnChanged(object sender, RoutedEventArgs e)
     {
-        if (_scanning)
+        if (_applyingSettings || _scanning)
             return;
         _familyLocked = MultiFamilyCheck.IsChecked == true;
         if (MultiFamilyCheck.IsChecked != true)
             _familyLocked = false;
         ApplyDetectorConfig();
-        StatusText.Text = MultiFamilyCheck.IsChecked == true
+        SetStatus(MultiFamilyCheck.IsChecked == true
             ? L.S("StatusMultiFamily")
-            : L.S("StatusShowTag");
+            : L.S("StatusShowTag"));
     }
 
     private void PresetCombo_OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
-        if (_applyingLocalization || PresetCombo.SelectedItem is not SpeedPreset preset || _scanning)
+        if (_applyingSettings || _applyingLocalization || PresetCombo.SelectedItem is not SpeedPreset preset || _scanning)
             return;
         _preset = preset;
         ApplyDetectorConfig();
+        PersistSettings();
+    }
+
+    private void MissBox_OnLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_applyingSettings)
+            return;
+        var miss = Math.Clamp(ParseInt(MissBox.Text, 8), 1, 99);
+        MissBox.Text = miss.ToString();
+        PersistSettings();
+    }
+
+    private void BeepCheck_OnChanged(object sender, RoutedEventArgs e)
+    {
+        if (_applyingSettings || !IsLoaded)
+            return;
+        PersistSettings();
+    }
+
+    private void ApplySavedScannerSettings()
+    {
+        var data = LanguageSettings.LoadAll();
+        _applyingSettings = true;
+        try
+        {
+            // Family / multi-family intentionally not restored — auto-detect each launch.
+            MultiFamilyCheck.IsChecked = false;
+            FamilyCombo.SelectedItem = "tag36h11";
+            _selectedFamily = "tag36h11";
+            _familyLocked = false;
+
+            if (Enum.TryParse(data.Preset, ignoreCase: true, out SpeedPreset preset))
+            {
+                _preset = preset;
+                PresetCombo.SelectedItem = preset;
+            }
+
+            var miss = Math.Clamp(data.MissLimit, 1, 99);
+            MissBox.Text = miss.ToString();
+            BeepCheck.IsChecked = data.BeepOnDuplicate;
+            _preferredCameraIndex = data.CameraIndex;
+            _preferredCameraName = data.CameraName ?? "";
+        }
+        finally
+        {
+            _applyingSettings = false;
+        }
+    }
+
+    private void PersistSettings()
+    {
+        var data = LanguageSettings.LoadAll();
+        data.Language = L.Current;
+        // Keep schema fields but never treat them as launch defaults.
+        data.Family = "tag36h11";
+        data.MultiFamily = false;
+        data.Preset = _preset.ToString();
+        data.MissLimit = Math.Clamp(ParseInt(MissBox.Text, 8), 1, 99);
+        data.BeepOnDuplicate = BeepCheck.IsChecked == true;
+        if (CameraCombo.SelectedItem is CameraDevice camera && !camera.IsPlaceholder)
+        {
+            data.CameraIndex = camera.Index;
+            data.CameraName = camera.Name;
+            _preferredCameraIndex = camera.Index;
+            _preferredCameraName = camera.Name;
+        }
+
+        LanguageSettings.SaveAll(data);
     }
 
     private void SetSettingsEnabled(bool enabled)

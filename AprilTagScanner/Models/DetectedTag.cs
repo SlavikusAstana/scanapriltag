@@ -25,5 +25,7 @@ public sealed class TagRecord
     public required int Id { get; init; }
     public bool Duplicate { get; set; }
 
-    public string Label => Id.ToString();
+    public string Label => TagLabels.Format(Family, Id, includeFamily: false);
+
+    public string DisplayLabel(bool includeFamily) => TagLabels.Format(Family, Id, includeFamily);
 }
